@@ -38,7 +38,7 @@ library(knitr)
 
 #load data
 insurance_data_s26 <- read_csv("insurance_data_S26.csv")
-insurance_valdiation <- read_csv("insurance_data_validation_S26.csv")
+insurance_validation <- read_csv("insurance_data_validation_S26.csv")
 ```
 
 Prior to model building, it is necessary to understand the data we are working with. The activity instructions provided the following list of attribute descriptions. Attribute titles and data types incorporated in the list are our own additions, obtained through the `names` and `str` functions in $R$.
@@ -235,9 +235,9 @@ model2 <- cv.glmnet(
   nfolds = 10
 )
 
-model2 <- predict(model2, s = model2$lambda.1se, type = "coefficients")
-model2 <- data.frame(name = model2@Dimnames[[1]][model2@i + 1], coefficient = model2@x)
-model2
+model_2 <- predict(model2, s = model2$lambda.1se, type = "coefficients")
+model_2 <- data.frame(name = model_2@Dimnames[[1]][model_2@i + 1], coefficient = model_2@x)
+model_2
 
 ```
 
@@ -253,48 +253,111 @@ Now that we have our models and an understanding of what they mean, it is import
 #| echo: false
 
 #predict values
-model1_predicted <- predict(model1, newx = insurance_test)
+model1_predicted <- predict(model1, newdata = insurance_test)
 
 #calculate R^2
-
-
+rss <- sum((model1_predicted - insurance_test_output)^2)  
+tss <- sum((insurance_test_output - mean(insurance_test_output))^2)
+r2 <- 1- (rss/tss)
+r2
 #calculate RMSE
+mse <- modelr::mse(model = model1, data = insurance_test)
+rmse <- sqrt(mse)
+rmse
 
-
+rmse_factor <- exp(rmse)
+rmse_factor
 ```
+
+\[interpret results\]
 
 ### Model 2 Cross Validation
 
+```{r}
+#| label: "model-2-validation"
+#| results: "hide"
+#| echo: false
+
+#predict values
+model2_predicted <- predict(model2, s = model2$lambda.1se, newx = insurance_test_input)
+
+#calculate R^2
+rss <- sum((model2_predicted - insurance_test_output)^2)  
+tss <- sum((insurance_test_output - mean(insurance_test_output))^2)
+r2 <- 1- (rss/tss)
+r2
+#calculate RMSE
+rmse <- sqrt(mean(insurance_test_output - model2_predicted)^2)
+rmse
+
+rmse_factor <- exp(rmse)
+rmse_factor
+```
+
+\[interpret results\]
+
 ### Final Test Validation
 
-Before we can use the validation data provided to us, we need to transform the `sex`, `smoker`, and `charges` elements. This is because these attributes were manipulated during model creation. For validation to be effective, the data must align with the model structure. As such, we transform `sex` and `smoker` attributes into dummy variables and take the natural log of the `charges` outcome attribute.
+Before we can use the validation data provided to us, we need to transform the `sex`, `smoker`, and `charges` elements. This is because these attributes were manipulated during model creation. For validation to be effective, the data must align with the model structure. As such, we transform `sex` and `smoker` attributes into dummy variables and take the natural log of the `charges` outcome attribute. It is also necessary to split into input and output groups for easier calculations later on.
 
 ```{r}
 #| label: "validation-set-clean"
 #| results: "hide"
 #| echo: false
 
-insurance_valdiation <- insurance_valdiation %>% filter(!is.na(charges))
-dim(insurance_valdiation)
+insurance_validation <- insurance_validation %>% filter(!is.na(charges)) %>% select(-c(`...1`))
+dim(insurance_validation)
 
 #transform dummies
-insurance_valdiation <- insurance_valdiation %>% mutate(
+insurance_validation <- insurance_validation %>% mutate(
   male = ifelse(sex == "male", 1, 0), 
   smoker = ifelse(smoker == "no", 0, 1)
 ) %>% select(-c(sex))
 
 
 #transform outcome
-insurance_valdiation <- insurance_valdiation %>% mutate(
+insurance_validation <- insurance_validation %>% mutate(
   log_charges = log(charges + 1)
 )
+
+#split data input/output
+insurance_validation_input <- model.matrix(log_charges ~ . -charges -caseID, data = insurance_validation)
+insurance_validation_output <- insurance_validation$log_charges
 ```
+
+```{r}
+#| label: "validation-set-test"
+#| results: "hide"
+#| echo: false
+
+#model 1 test
+model1_predicted <- predict(model1, newdata = insurance_validation)
+rmse1 <- sqrt(mean(insurance_validation_output - model1_predicted)^2)
+rmse1
+rmse1_factor <- exp(rmse1)
+rmse1_factor
+
+#model 2 test
+model2_predicted <- predict(model2, s = model2$lambda.1se, newx = insurance_validation_input)
+rmse2 <- sqrt(mean(insurance_validation_output - model2_predicted)^2)
+rmse2
+rmse2_factor <- exp(rmse2)
+rmse2_factor
+```
+
+\[interpret results\]
 
 ### The Final Model: ...
 
 # V. Final Recommendations
 
 # VI. Author Contributions
+
+Abigail Weinstein: All code. All introductory text for each section. @tbl-data-summary and @fig-data-dispersion.
+
+Jeremy Ijoma: Created GitHub repository; brainstorming.
+
+Max Krier: Brainstorming
 
 # VII. Code Appendix
 
