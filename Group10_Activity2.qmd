@@ -51,7 +51,9 @@ insurance_data_s26 <- insurance_data_s26 %>% select(-c(`...1`))
 
 names(insurance_data_s26)
 str(insurance_data_s26)
+summary(insurance_data_s26)
 ```
+The data represents the range of  
 
 > -   `age` : the age of the primary beneficiary (in years); numeric
 > -   `sex` : the sex of the primary beneficiary; character
@@ -178,6 +180,7 @@ $$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children
 $$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
 
 \[interpretation\]
+This model from the Step-Wise regression techniques uses age, smoking status, and BMI to show the primary causes of insurance costs. This is shown through Adjusted R-squared. It seems to show smoking status as the largest relative impact.
 
 ```{r}
 #| label: "model-sws-aic"
@@ -214,7 +217,7 @@ $$
 $$
 
 \[interpretation\]
-
+Through LASSO Regression, the model shows singular influence of insurance risk. One Standard Error selects the one model that is simplified and minimized but can still perform within a good margin of the result.
 ```{r}
 #| label: "model-lasso"
 #| results: "hide"
@@ -295,7 +298,12 @@ insurance_valdiation <- insurance_valdiation %>% mutate(
 # V. Final Recommendations
 
 # VI. Author Contributions
+Jeremy:
+- Setting up the github repository
 
+Abigail:
+
+Max:
 # VII. Code Appendix
 
 ```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
