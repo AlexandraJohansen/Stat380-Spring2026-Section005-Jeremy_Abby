@@ -1,12 +1,10 @@
 ---
-title: "Activity #2: Applying Linear Regression Algorithms"
-subtitle: "Group 10: Jeremy, Abi, Max"
-author: "Abby Sine"
-date: 02-22-2026
-output: 
-  html_document:
-    toc: true
+output: html
 ---
+
+# Activity #2: Applying Linear Regression Algorithms
+
+## Group 10: Jeremy, Abi, Max
 
 You and your team have been hired by the Nittany Valley Insurance Company to provide insight into how much an arbitrary health insurance policy might cost the company. You’ve been provided a data collection available for download: [Activity #2 Insurance Policy Data](https://psu.instructure.com/courses/2451788/files/189213964/download?download_frd=1) (note: clicking the link will initiate a download).
 
