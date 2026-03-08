@@ -1,0 +1,143 @@
+---
+title: "Activity #2: Applying Linear Regression Algorithms"
+author: 
+  - "Abigail Weinstein"
+  - "Jeremy Ijoma"
+  - "Max Krier"
+date: 03-08-2026
+format: pdf
+---
+
+# I. Introduction
+
+Per the activity description:
+
+> "You and your team have been hired by the Nittany Valley Insurance Company to provide insight into how much an arbitrary health insurance policy might cost the company... Your goal is to build a predictive model for the charges based upon the available data using algorithms associated with linear regression."
+
+The intention of this project is to develop an ideal predictive model of insurance claims costs for the Nittany Valley Insurance Company using strategies we have learned in class. The primary focus in this task is to evaluate the models using measures such as $R^2$, $RMSE$, $AIC$, etc. while building them using model selection algorithms and formulas (i.e., LASSO Regression, Backward Selection, etc.). It is also necessary for us as a team to evaluate the validity of these models, asking the question "is this model logical and realistic?". In doing this, we hope to have successfully created a predictive model that addresses the need for claims cost calculations effectively.
+
+# II. Data Exploration
+
+```{r}
+#| results: "hide"
+#| label: "data-preparation"
+#| message: false
+#| echo: false
+
+#import libraries
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(psych)
+library(scales)
+library(modelr)
+library(glmnet)
+library(ggpubr)
+library(kableExtra)
+library(knitr)
+#load data
+insurance_data_s26 <- read_csv("insurance_data_S26.csv")
+```
+
+Prior to model building, it is necessary to understand the data we are working with. The activity instructions provided the following list of attribute descriptions. Attribute titles and data types incorporated in the list are our own additions, obtained through the `names` and `str` functions in $R$.
+
+```{r}
+#| label: "data-exploration-1"
+#| results: "hide"
+#| echo: false
+insurance_data_s26 <- insurance_data_s26 %>% select(-c(`...1`))
+
+names(insurance_data_s26)
+str(insurance_data_s26)
+```
+
+> -   `age` : the age of the primary beneficiary (in years); numeric
+> -   `sex` : the sex of the primary beneficiary; character
+> -   `bmi`: the body mass index of the primary beneficiary $kg/m^2$; numeric
+> -   `children`: the number of children/dependents of the primary beneficiary; numeric
+> -   `smoker`: whether the primary beneficiary is a smoker; character
+> -   `region`: which of four US geographical regions the primary beneficiary lives in; character
+> -   `month`: the month in which the claim occurred; numeric
+> -   `priorclaims`: the number of claims made by the primary beneficiary in the prior fiscal year; numeric
+> -   **\*\*\*`charges`: the total charges billed to the policy (in US dollars); numeric\*\*\***
+
+Using this list, we can make some assumptions about what we believe would produce the best predictive model. It will also help inform our interpretations of the models produced later on. It should be noted that there are multiple character-based attributes within this data. These attributes should be transformed to be dummies for the categories they represent. In addition to this, we also need to ensure that missing values are removed from the data. After this is completed, we can look at the size of our data set and begin examining initial relationships and distributions.
+
+### Data Cleaning
+
+```{r}
+#| label: "data-cleaning"
+#| results: "hide"
+#| echo: false
+
+#evaluate missingness + check dimensions
+dim(insurance_data_s26)
+insurance_data_s26_clean <- insurance_data_s26 %>% filter(!is.na(charges))
+dim(insurance_data_s26_clean)
+
+#transform dummies
+insurance_data_s26_clean <- insurance_data_s26_clean %>% mutate(
+  male = ifelse(sex == "male", 1, 0), 
+  smoker = ifelse(smoker == "no", 0, 1)
+) %>% select(-c(sex))
+```
+
+To clean the data, we first addressed the missing values. We did so by identifying the observations of the *outcome variable* and dropping them from the data set. There was only one such observation flagged, bring the count of observations from $861$ to $860$ in total. After addressing this concern, we then transformed some of our categorical variables to be numeric. The `smoker` variable was altered such that an entry of $1$ is equivalent to the "yes" response that was provided initially. The `sex` attribute was dropped in favor of the `male` attribute, which encodes those that were noted as "male" in the former as a positive ($1$) observation in the latter. We opted to leave region as it was, as altering encoding and making dummy variables is less intuitive than it is in its original form.
+
+### Data Summary + Visualizations
+
+With this, we can now examine the actual numeric elements of our data. This includes an exploration of summary statistics, outcome variable distribution, and cursory overview of attribute relationships.
+
+```{r}
+#| label: "tbl-data-summary"
+#| echo: false
+
+#needs formated!!!
+tbl <- describe(insurance_data_s26_clean)
+tbl <- tbl %>% select(c(n, min, median, mean, max, sd)) %>% filter(rownames(tbl) != "region*" | rownames(tbl) != "caseID")
+tbl <- kable(tbl) %>% kable_classic()
+tbl
+```
+
+...
+
+```{r}
+#| label: "fig-data-dispersion"
+#| echo: false
+#| fig-cap: "Distribution of Claim Costs"
+
+dens <- ggplot(insurance_data_s26_clean, aes(charges)) + geom_density(color = "red", linewidth = 1.25, fill = "red", alpha = .25) + labs(
+  x = "Claims Costs (in USD)", 
+  y = "Density", 
+) + theme_minimal() + scale_y_continuous(labels = comma) + scale_x_continuous(labels = comma)
+
+dens <- annotate_figure(dens, top = text_grob("Claims Costs (in USD) Distribution"))
+dens
+
+```
+
+In @fig-data-dispersion, we see the distribution of the outcome variable, `charges`, in the form of a density plot. This density plot indicates to us that our outcome variable is *not* normally distributed, but rather right skewed. This aligns with the information presented in @tbl-data-summary. It is to be expected, of course, as there is a limit to how little something can cost but no cap for how much. This type of distribution is commonly seen in monetary distributions. What does this mean for our models though? It means that it will be difficult to accurately create a linear regression with this data, as the outcome variable itself is not normally distributed or linear in nature. To address this, we will transform the outcome variable by taking the natural log ($ln(x)$). This will allow us to more accurately predict the outcome variable using a linear model, as the outcome itself will now be linear. **From this point forward, the *logged* version of the outcome variable will be used.**
+
+```{r}
+#| label: "transform-outcome"
+#| results: "hide"
+#| echo: false
+
+insurance_data_s26_clean <- insurance_data_s26_clean %>% mutate(
+  log_charges = log(charges + 1)
+)
+
+```
+
+# III. Modeling 
+
+# IV. Results
+
+# V. Final Recommendations
+
+# VI. Author Contributions
+
+# VII. Code Appendix
+
+```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+```
