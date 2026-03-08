@@ -1,7 +1,3 @@
----
-output: html
----
-
 # Activity #2: Applying Linear Regression Algorithms
 
 ## Group 10: Jeremy, Abi, Max
