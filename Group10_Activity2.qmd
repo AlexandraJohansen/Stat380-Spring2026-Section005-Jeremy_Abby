@@ -84,7 +84,7 @@ insurance_data_s26_clean <- insurance_data_s26_clean %>% mutate(
 
 To clean the data, we first addressed the missing values. We did so by identifying the observations of the *outcome variable* and dropping them from the data set. There was only one such observation flagged, bring the count of observations from $861$ to $860$ in total. After addressing this concern, we then transformed some of our categorical variables to be numeric. The `smoker` variable was altered such that an entry of $1$ is equivalent to the "yes" response that was provided initially. The `sex` attribute was dropped in favor of the `male` attribute, which encodes those that were noted as "male" in the former as a positive ($1$) observation in the latter. We opted to leave region as it was, as altering encoding and making dummy variables is less intuitive than it is in its original form.
 
-### Data Summary + Visualizations
+### Data Summary
 
 With this, we can now examine the actual numeric elements of our data. This includes an exploration of summary statistics, outcome variable distribution, and cursory overview of attribute relationships.
 
@@ -94,12 +94,18 @@ With this, we can now examine the actual numeric elements of our data. This incl
 
 #needs formated!!!
 tbl <- describe(insurance_data_s26_clean)
-tbl <- tbl %>% select(c(n, min, median, mean, max, sd)) %>% filter(rownames(tbl) != "region*" | rownames(tbl) != "caseID")
-tbl <- kable(tbl) %>% kable_classic()
+tbl <- tbl %>% select(c(n, min, median, mean, max, sd)) %>% filter(rownames(tbl) != "region*" & rownames(tbl) != "caseID")
+tbl <- tbl %>% slice(5, 1:4, 6:10)
+tbl <- kable(tbl, col.names = 
+            c("", "Count", "Minimum", "Median", "Mean", "Maximum", "Std. Dev."),
+            digits = 3, 
+            format.args = list(big.mark = ",")) %>% row_spec(1, bold = TRUE) %>%
+  kable_classic() %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) 
 tbl
 ```
 
-...
+In @tbl-data-summary, we can see the summary statistics for all variables in the data (with the exception of `region`). \[...\]
 
 ```{r}
 #| label: "fig-data-dispersion"
@@ -129,7 +135,52 @@ insurance_data_s26_clean <- insurance_data_s26_clean %>% mutate(
 
 ```
 
+### Exploring Relationships
+
+\[...\]
+
 # III. Modeling 
+
+Now we are ready to start building our models. As a team, we have decided to use the following model selection strategies to create our two primary models of interest: Step-wise Selection and LASSO Regression. Within these selection algorithms, we will be using the $AIC$ and 1-SE $MSE$ strategies respectively. As always, it is important to remember to split data as to not over fit the models. To evaluate our models, we will be using $RMSE$ and $R^2$.
+
+```{r}
+#| label: "data-split"
+#| results: "hide"
+#| echo: false
+
+set.seed(12345) #set seed
+train_index <- sample(
+  x = 1:nrow(insurance_data_s26_clean), 
+  size = floor(0.8*nrow(insurance_data_s26_clean))) 
+
+#training and validation sets
+insurance_train <- insurance_data_s26_clean[train_index, ]
+insurance_test <- insurance_data_s26_clean[-train_index, ]
+
+#sub-split for LASSO
+insurance_train_input <- model.matrix(log_charges ~ ., data = insurance_train)
+insurance_train_output <- insurance_train$log_charges
+
+insurance_test_input <- model.matrix(log_charges ~ ., data = insurance_test )
+insurance_test_output <- insurance_test$log_charges
+
+```
+
+To split the data, we will be using an $80/20$ random split such that $80$% of the data is in our training data and the other $20$% is in the testing/validation data. It is also necessary to create sub-splits of these sets for the LASSO regression.
+
+### Model 1: Step-Wise Selection (AIC)
+
+```{r}
+#build + train model
+#plot if possible
+```
+
+### Model 2: LASSO Regression (1-SE MSE)
+
+```{r}
+#build + train model
+#plot if possible
+```
 
 # IV. Results
 
