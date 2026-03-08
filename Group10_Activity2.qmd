@@ -259,11 +259,17 @@ Now that we have our models and an understanding of what they mean, it is import
 model1_predicted <- predict(model1, newx = insurance_test)
 
 #calculate R^2
+r_squared_value <- summary(model1)$r.squared
 
+print(r_squared_value)
 
 #calculate RMSE
 
+mse_value <- mean(residuals(model1))
+rmse_value <- mse_value^2
 
+print(mse_value)
+print(rmse_value)
 ```
 
 ### Model 2 Cross Validation
