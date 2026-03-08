@@ -35,8 +35,10 @@ library(glmnet)
 library(ggpubr)
 library(kableExtra)
 library(knitr)
+
 #load data
 insurance_data_s26 <- read_csv("insurance_data_S26.csv")
+insurance_valdiation <- read_csv("insurance_data_validation_S26.csv")
 ```
 
 Prior to model building, it is necessary to understand the data we are working with. The activity instructions provided the following list of attribute descriptions. Attribute titles and data types incorporated in the list are our own additions, obtained through the `names` and `str` functions in $R$.
@@ -158,31 +160,137 @@ insurance_train <- insurance_data_s26_clean[train_index, ]
 insurance_test <- insurance_data_s26_clean[-train_index, ]
 
 #sub-split for LASSO
-insurance_train_input <- model.matrix(log_charges ~ ., data = insurance_train)
+insurance_train_input <- model.matrix(log_charges ~ . -caseID -charges, data = insurance_train)
 insurance_train_output <- insurance_train$log_charges
 
-insurance_test_input <- model.matrix(log_charges ~ ., data = insurance_test )
+insurance_test_input <- model.matrix(log_charges ~ . -caseID -charges, data = insurance_test )
 insurance_test_output <- insurance_test$log_charges
 
 ```
 
-To split the data, we will be using an $80/20$ random split such that $80$% of the data is in our training data and the other $20$% is in the testing/validation data. It is also necessary to create sub-splits of these sets for the LASSO regression.
+To split the data, we will be using an $80/20$ random split such that $80$% of the data is in our training data and the other $20$% is in the testing/validation data. It is also necessary to create sub-splits of these sets for the LASSO regression. In this section and the next, you will see we omit the `caseID` and `charges` attributes. This is because they are either irrelevant to the model (`caseID`) or are a variation on our dependent variable. Including these will disturb the model, so it is necessary to remove them prior to creation.
 
 ### Model 1: Step-Wise Selection (AIC)
 
+After using the step-wise selection algorithm on our testing data, we identified the model with the lowest $AIC$ out of all possible models. The resulting model included the following variables: `smoker`, `age`, `children`, `priorclaims`, `region`, `bmi`, and `male` (our modified version of `sex`). Below is the full model:
+
+$$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children, i} $$
+$$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
+
+\[interpretation\]
+
 ```{r}
-#build + train model
-#plot if possible
+#| label: "model-sws-aic"
+#| results: "hide"
+#| message: false
+#| echo: false
+#prep models
+nullModel <- lm(log_charges ~ 1, data = insurance_train)
+fullModel <- lm(log_charges ~ . -caseID -charges, data = insurance_train)
+
+#final model build
+model1 <- step(
+  object = nullModel, 
+  scope = list(
+    lower = nullModel, 
+    upper = fullModel
+  ), 
+  data = insurance_train, 
+  direction = "both",
+  k = 2, 
+  trace = 0
+)
+
+summary(model1)
+
 ```
 
 ### Model 2: LASSO Regression (1-SE MSE)
 
+Our second model we created using the LASSO regression method, which scales coefficients to zero relative to least-squares estimates. We identify this scaling factor ($\lambda$) by identifying the point at which the lowest mean-squared error ($MSE$) exists and identifying from there the simplest model within one standard error of that point. Those values themselves are determined through cross-validation processes. In this instance the resulting model contains the following four attributes: `age`, `children`, `smoker`, and `priorclaims`. The full model is below:
+
+$$
+\ln(charges) = 7.581 + 0.031X_{age, i} + 0.053X_{children, i} + 1.341X_{smoker, i} - 0.014X_{priorclaims, i}
+$$
+
+\[interpretation\]
+
 ```{r}
-#build + train model
-#plot if possible
+#| label: "model-lasso"
+#| results: "hide"
+#| message: false
+#| echo: false
+
+#set seed
+set.seed(54321)
+
+#build model
+model2 <- cv.glmnet(
+  x = insurance_train_input, 
+  y = insurance_train_output, 
+  family = "gaussian", 
+  alpha = 1, 
+  lambda = NULL, 
+  standardize = TRUE, 
+  nfolds = 10
+)
+
+model2 <- predict(model2, s = model2$lambda.1se, type = "coefficients")
+model2 <- data.frame(name = model2@Dimnames[[1]][model2@i + 1], coefficient = model2@x)
+model2
+
 ```
 
-# IV. Results
+# V. Results
+
+Now that we have our models and an understanding of what they mean, it is important that we validate each of them. As mentioned earlier, we are to be utilizing the $RMSE$ and $R^2$ to evaluate each of these models. In addition, we have been provided with another unique data set for the models to be assessed on. Each model will then have interpretations provided for results of both cross-validation assessments and the unseen data assessments. This, of course, is in addition to the contextual interpretations of the models. After this, we will select the model we believe to be the best.
+
+### Model 1 Cross Validation
+
+```{r}
+#| label: "model-1-validation"
+#| results: "hide"
+#| echo: false
+
+#predict values
+model1_predicted <- predict(model1, newx = insurance_test)
+
+#calculate R^2
+
+
+#calculate RMSE
+
+
+```
+
+### Model 2 Cross Validation
+
+### Final Test Validation
+
+Before we can use the validation data provided to us, we need to transform the `sex`, `smoker`, and `charges` elements. This is because these attributes were manipulated during model creation. For validation to be effective, the data must align with the model structure. As such, we transform `sex` and `smoker` attributes into dummy variables and take the natural log of the `charges` outcome attribute.
+
+```{r}
+#| label: "validation-set-clean"
+#| results: "hide"
+#| echo: false
+
+insurance_valdiation <- insurance_valdiation %>% filter(!is.na(charges))
+dim(insurance_valdiation)
+
+#transform dummies
+insurance_valdiation <- insurance_valdiation %>% mutate(
+  male = ifelse(sex == "male", 1, 0), 
+  smoker = ifelse(smoker == "no", 0, 1)
+) %>% select(-c(sex))
+
+
+#transform outcome
+insurance_valdiation <- insurance_valdiation %>% mutate(
+  log_charges = log(charges + 1)
+)
+```
+
+### The Final Model: ...
 
 # V. Final Recommendations
 
