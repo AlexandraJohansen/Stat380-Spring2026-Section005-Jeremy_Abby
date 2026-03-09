@@ -56,7 +56,6 @@ names(insurance_data_s26)
 str(insurance_data_s26)
 summary(insurance_data_s26)
 ```
-The data represents the range of  
 
 > -   `age` : the age of the primary beneficiary (in years); numeric
 > -   `sex` : the sex of the primary beneficiary; character
@@ -187,7 +186,7 @@ smoker_BMI_LogCharges <- annotate_figure(smoker_BMI_LogCharges, top = text_grob(
 smoker_BMI_LogCharges
 ```
 
-In the above figure, @fig-BMI-Log-of-Claims-Smokers, we see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the smokers (those denoted with "yes" or 1 in the cleaned data). The distribution shows a positive linear relationship. The $R^2$ of the regression line is 0.62. Thus, `bmi` explains 62% of the variation in the $\ln(charges)$ for smokers.
+In the above figure, @fig-BMI-Log-of-Claims-Smokers, we see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the smokers (those denoted with "yes" or 1 in the cleaned data). The distribution shows a positive linear relationship. The $R^2$ of the regression line is $0.62$. Thus, `bmi` explains $62$% of the variation in the $\ln(charges)$ for smokers.
 
 ```{r}
 #| label: "fig-BMI-Log-of-Claims-Non-Smokers"
@@ -213,9 +212,9 @@ nonsmoker_BMI_LogCharges <- annotate_figure(nonsmoker_BMI_LogCharges, top = text
 nonsmoker_BMI_LogCharges
 ```
 
-In the above figure, @fig-BMI-Log-of-Claims-Non-Smokers, we once again see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the non smokers (those denoted with "no" or 0 in the cleaned data). This distribution has a very flat non-linear distribution. The relationship has a $R^2$ value of \~ 0, which gives very little confidence that `bmi` has any effect on charges of those that are not smokers.
+In the above figure, @fig-BMI-Log-of-Claims-Non-Smokers, we once again see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the non smokers (those denoted with "no" or 0 in the cleaned data). This distribution has a very flat non-linear distribution. The relationship has a $R^2$ value of \~ $0$, which gives very little confidence that `bmi` has any effect on charges of those that are not smokers.
 
-# III. Modeling 
+# III. Modeling
 
 Now we are ready to start building our models. As a team, we have decided to use the following model selection strategies to create our two primary models of interest: Step-wise Selection and LASSO Regression. Within these selection algorithms, we will be using the $AIC$ and 1-SE $MSE$ strategies respectively. As always, it is important to remember to split data as to not over fit the models. To evaluate our models, we will be using $RMSE$ and $R^2$.
 
@@ -248,8 +247,7 @@ To split the data, we will be using an $80/20$ random split such that $80$% of t
 
 After using the step-wise selection algorithm on our testing data, we identified the model with the lowest $AIC$ (Akaike Information Criterion) out of all possible models. The resulting model included the following variables: `smoker`, `age`, `children`, `priorclaims`, `region`, `bmi`, and `male` (our modified version of `sex`). Below is the full model:
 
-$$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children, i} $$
-$$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
+$$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children, i} $$ $$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
 
 The first item that should be noted is that the outcome variable is represented as a natural log here. This influences how all other coefficients are interpreted. Instead of each coefficient-attribute pair contributing $x$ dollars to the total value of claims costs, it represents the contribution to the logged value of those costs. As such, the each coefficient does not represent an increase of $\beta$ per unit (as in summation), but rather the product of $e^{\beta * X}$ **in relation to the outcome as it is in US dollars**. For instance, for every unit increase in `age`, for example, the natural log of `charges` will increase by $0.034$, which translates to it being multiplied by a factor of $e^{.034X}$. For most of the attributes in this model, it is simply a matter of whether or not it occurs, as they are dichotomous categorical variables. If an insurance claim is made by a man, for example, the cost to the insurance company decreases by $.07$ logged USD *or* by a factor of $1.07$ when extrapolating the formula to the un-transformed dollar. While it does become more complicated, this transformation allows us to have what really should be a logarithmic regression in the form of a linear one.
 
@@ -471,8 +469,7 @@ While they are very close, our first model indicates less deviation from both lo
 
 The final model recommended for Nittany Valley Insurance Company is **Model 1: Step-Wise Selection w/ AIC**. This model incorporates a number of attributes from the data provided (`smoker`, `age`, `children`, `priorclaims`, `region`, `bmi`, and `sex`) to create a model that is fairly well fit and does not deviate too strongly from true values in both the logged data used to create the models and the raw data that the models will be applied to. The model, shown below, addresses the three "big" factors that are commonly agreed upon to have substantial influence on claims costs and provides evidence to support that belief.
 
-$$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children, i} $$
-$$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
+$$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children, i} $$ $$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
 
 # V. Final Recommendations
 
@@ -481,10 +478,6 @@ While the authors used the a logarithmic transformation to address normality con
 For the team working on this report, we recognize that more validation measures and plots should be included in the future to help support the validity of those models. Examples include QQ-plots and residual plots.
 
 # VI. Author Contributions
-Jeremy:
-- Setting up the github repository
-
-Abigail:
 
 Abigail Weinstein: All code. Introductory and explanatory text for Data Cleaning, Modeling, Results, and Final Recommendation. @tbl-data-summary and @fig-data-dispersion.
 
