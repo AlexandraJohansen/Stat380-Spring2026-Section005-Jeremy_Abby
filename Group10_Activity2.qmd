@@ -5,7 +5,9 @@ author:
   - "Jeremy Ijoma"
   - "Max Krier"
 date: 03-08-2026
-format: pdf
+format: 
+    pdf:
+      code-overflow: wrap
 ---
 
 # I. Introduction
@@ -53,6 +55,7 @@ names(insurance_data_s26)
 str(insurance_data_s26)
 summary(insurance_data_s26)
 ```
+The data represents the range of  
 
 > -   `age` : the age of the primary beneficiary (in years); numeric
 > -   `sex` : the sex of the primary beneficiary; character
@@ -107,11 +110,19 @@ tbl <- kable(tbl, col.names =
   kable_styling(bootstrap_options = c("striped", "hover", "condensed")) 
 tbl
 
+##BoxPlot display the statistics
+ggplot(insurance_data_s26_clean, aes(x = as.factor(smoker), y = charges, fill = as.factor(smoker))) +
+  geom_boxplot() +
+  scale_x_discrete(labels = c("Non-Smoker", "Smoker")) +
+  scale_fill_manual(values = c("lightgrey", "orange"), guide = "none") +
+  labs(title = "Cost Difference by Smoking Status", x = "Smoker Status", y = "Charges ($)") +
+  theme_classic()
 
 ```
 
 
 In @tbl-data-summary, we can see the summary statistics for all variables in the data (with the exception of `region`). \[...\]
+the summary statistics in the beneficiary population, the table show the average age (mean/median) of 39 ranging from 18 to 64 and number of children in beneficiary ranges from 0 to 5. BMI's mean/median is at 30.6. Though the mean and median are close in these variables, they seem to differ in insurance charges from 9,447 as the median and 13196 as the mean proving a right skewed scatterplot. This shows that a small statistical imbalance of the costs seem to impact the average greater.
 
 the summary statistics in the beneficiary population, the table show the average age (mean/median) of 39 ranging from 18 to 64 and number of children in beneficiary ranges from 0 to 5. BMI's mean/median is at 30.6. Though the mean and median are close in these variables, they seem to differ in insurance charges from 9,447 as the median and 13196 as the mean proving a right skewed scatterplot. This shows that a small statistical imbalance of the costs seem to impact the average greater.
 
@@ -144,6 +155,55 @@ insurance_data_s26_clean <- insurance_data_s26_clean %>% mutate(
 ```
 
 ### Exploring Relationships
+
+Below are graphs showing a collection of a few of the relationships looked at in the project.  
+
+```{r}
+#| label: "BMI-Log-of-Claims-Smokers"
+#| echo: false
+#| fig-cap: "BMI Vs. Log of Claims Costs (In smokers)"
+
+#Splitting the smokers from non-smokers to see if results change significantly
+df <- split(insurance_data_s26_clean, insurance_data_s26_clean$smoker)
+df_smoker <- df$yes
+df_nonsmoker <- df$no
+
+smoker_BMI_LogCharges <- ggplot(df_smoker, mapping = aes(log_charges, bmi)) + 
+  geom_point(color = "black", alpha = 0.5, fill = "red", shape = 21, size = 2, stroke = 0.5) +
+  geom_smooth(method = "lm", color = "red", linewidth = 1.25, alpha = 0.25) +
+  labs(
+    x = "Log of Claims Costs (in USD)", 
+    y = "BMI", 
+  ) + stat_poly_eq(use_label(c("eq", "R2")), formula = y ~ x, parse = TRUE) + 
+  theme_minimal()
+smoker_BMI_LogCharges <- annotate_figure(smoker_BMI_LogCharges, top = text_grob("BMI Vs. Log of Claims Costs (In smokers)"))
+smoker_BMI_LogCharges
+```
+
+In the above figure, @BMI-Log-of-Claims, we see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the smokers (those denoted with "yes" or 1 in the cleaned data).  The distribution shows a positive linear relationship.  The $R^2$ of the regression line is 0.62.  Thus, bmi explains 62% of the variation in the $log(charges)$ for smokers.  
+
+```{r}
+#| label: "BMI-Log-of-Claims-Non-Smokers"
+#| echo: false
+#| fig-cap: "BMI Vs. Log of Claims Costs (In non smokers)"
+
+#Splitting the smokers from non-smokers to see if results change significantly
+df <- split(insurance_data_s26_clean, insurance_data_s26_clean$smoker)
+df_smoker <- df$yes
+df_nonsmoker <- df$no
+
+nonsmoker_BMI_LogCharges <- ggplot(df_nonsmoker, mapping = aes(log_charges, bmi)) + 
+  geom_point(color = "black", alpha = 0.5, fill = "red", shape = 21, size = 2, stroke = 0.5) +
+  geom_smooth(method = "lm", color = "red", linewidth = 1.25) +
+  labs(
+    x = "Log of Claims Costs (in USD)", 
+    y = "BMI", 
+  ) + stat_poly_eq(use_label(c("eq", "R2")), formula = y ~ x, parse = TRUE) + 
+  theme_minimal()
+nonsmoker_BMI_LogCharges <- annotate_figure(nonsmoker_BMI_LogCharges, top = text_grob("BMI Vs. Log of Claims Costs (In non smokers)"))
+nonsmoker_BMI_LogCharges
+```
+In the above figure, @BMI-Log-of-Claims-Non-Smokers, we once again see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the non smokers (those denoted with "no" or 0 in the cleaned data).  This distribution has a very flat non-linear distribution.  The relationship has a $R^2$ value of ~ 0, which gives very little confidence that bmi has any effect on charges of those that are not smokers.  
 
 \[...\]
 
@@ -255,7 +315,7 @@ model_2
 
 # V. Results
 
-Now that we have our models and an understanding of what they mean, it is important that we validate each of them. Validation will first be conducted with respect to the *testing* sets constructed earlier in this report. As mentioned earlier, we are to be utilizing the $RMSE$ and $R^2$ to evaluate each of these models. In addition, we have been provided with another unique data set for the models to be assessed on. Each model will then have interpretations provided for results of both cross-validation assessments and the unseen data assessments. This, of course, is in addition to the contextual interpretations of the models. After this, we will select the model we believe to be the best.
+Now that we have our models and an understanding of what they mean, it is important that we validate each of them. Validation will first be conducted with respect to the *testing* sets constructed earlier in this report. As mentioned earlier, we are to be utilizing the $RMSE$ and $R^2$ to evaluate each of these models. In addition, we have been provided with another unique data set for the models to be assessed on. Each model will then have interpretations provided for results of both cross-validation assessments and the unseen data assessments. This, of course, is in addition to the contextual interpretations of the models provided earlier. After this, we will select the model we believe to be the best.
 
 As a refresher, these are the formulas for both $RMSE$ and $R^2$:
 
@@ -266,6 +326,8 @@ $$
 $$
 R^2 = \sqrt{1/n * (y_i - \hat{y_i})^2}
 $$
+
+$RMSE$ evaluates the average error (in units of the outcome) from the true value of the observation and is used as a measure of accuracy. $R^2$ evaluates the proprotion of total variance accounted for within the model and is often used as a measure of fit.
 
 ### Model 1 Cross Validation
 
@@ -385,19 +447,42 @@ rmse2_factor <- exp(rmse2)
 rmse2_factor
 ```
 
-...
+The final test for these models are to evaluate them on completely unseen data. Evaluations are being conducted through *only* $RMSE$. The resulting $RMSE$ values are as follows:
 
-### The Final Model: ...
+$$
+RMSE_{M1} = .4145
+$$
+
+$$
+RMSE_{M2} = .4289
+$$
+
+While they are very close, our first model indicates less deviation from both logged and true values of the outcome variable ($.4145 < .4289$). With this information from unseen, unrelated data and the outcomes from our previous validation measures, we argue that the best model to use out of those presented here is **Model 1**.
+
+### The Final Model: Step-Wise Selection w/ AIC
+
+The final model recommended for Nittany Valley Insurance Company is **Model 1: Step-Wise Selection w/ AIC**. This model incorporates a number of attributes from the data provided (`smoker`, `age`, `children`, `priorclaims`, `region`, `bmi`, and `sex`) to create a model that is fairly well fit and does not deviate too strongly from true values in both the logged data used to create the models and the raw data that the models will be applied to. The model, shown below, addresses the three "big" factors that are commonly agreed upon to have substantial influence on claims costs and provides evidence to support that belief.
+
+$$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children, i} $$
+$$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
 
 # V. Final Recommendations
 
+While the authors used the a logarithmic transformation to address normality concerns such that a linear model would be more accurate, it should be noted that this transformation does not ensure normality. A closer look at the data will reveal an uneven, albeit more normal distribution of the outcome variable. It may be for this reason we saw larger $RMSE$s. We recommend that, in the future, a strictly non-linear approach is taken to predict costs to the company. These will likely be more accurate all around. It would still be recommended that factors such as age, BMI, smoking habits, and more are taken into consideration when creating those models.
+
+For the team working on this report, we recognize that more validation measures and plots should be included in the future to help support the validity of those models. Examples include QQ-plots and residual plots.
+
 # VI. Author Contributions
+Jeremy:
+- Setting up the github repository
 
-Abigail Weinstein: All code. All introductory text for each section. @tbl-data-summary and @fig-data-dispersion.
+Abigail:
 
-Jeremy Ijoma: Created GitHub repository; brainstorming.
+Abigail Weinstein: All code. All inductory and explanatory text for Data Cleaning, Modeling, Results, and Final Recommendation. @tbl-data-summary and @fig-data-dispersion.
 
-Max Krier: Brainstorming
+Jeremy Ijoma: Data summary interpretation, created GitHub repository, brainstorming.
+
+Max Krier: Exploring relationships visuals and explanations, brainstorming
 
 # VII. Code Appendix
 
