@@ -55,6 +55,7 @@ names(insurance_data_s26)
 str(insurance_data_s26)
 summary(insurance_data_s26)
 ```
+The data represents the range of  
 
 > -   `age` : the age of the primary beneficiary (in years); numeric
 > -   `sex` : the sex of the primary beneficiary; character
@@ -150,6 +151,55 @@ insurance_data_s26_clean <- insurance_data_s26_clean %>% mutate(
 ```
 
 ### Exploring Relationships
+
+Below are graphs showing a collection of a few of the relationships looked at in the project.  
+
+```{r}
+#| label: "BMI-Log-of-Claims-Smokers"
+#| echo: false
+#| fig-cap: "BMI Vs. Log of Claims Costs (In smokers)"
+
+#Splitting the smokers from non-smokers to see if results change significantly
+df <- split(insurance_data_s26_clean, insurance_data_s26_clean$smoker)
+df_smoker <- df$yes
+df_nonsmoker <- df$no
+
+smoker_BMI_LogCharges <- ggplot(df_smoker, mapping = aes(log_charges, bmi)) + 
+  geom_point(color = "black", alpha = 0.5, fill = "red", shape = 21, size = 2, stroke = 0.5) +
+  geom_smooth(method = "lm", color = "red", linewidth = 1.25, alpha = 0.25) +
+  labs(
+    x = "Log of Claims Costs (in USD)", 
+    y = "BMI", 
+  ) + stat_poly_eq(use_label(c("eq", "R2")), formula = y ~ x, parse = TRUE) + 
+  theme_minimal()
+smoker_BMI_LogCharges <- annotate_figure(smoker_BMI_LogCharges, top = text_grob("BMI Vs. Log of Claims Costs (In smokers)"))
+smoker_BMI_LogCharges
+```
+
+In the above figure, @BMI-Log-of-Claims, we see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the smokers (those denoted with "yes" or 1 in the cleaned data).  The distribution shows a positive linear relationship.  The $R^2$ of the regression line is 0.62.  Thus, bmi explains 62% of the variation in the $log(charges)$ for smokers.  
+
+```{r}
+#| label: "BMI-Log-of-Claims-Non-Smokers"
+#| echo: false
+#| fig-cap: "BMI Vs. Log of Claims Costs (In non smokers)"
+
+#Splitting the smokers from non-smokers to see if results change significantly
+df <- split(insurance_data_s26_clean, insurance_data_s26_clean$smoker)
+df_smoker <- df$yes
+df_nonsmoker <- df$no
+
+nonsmoker_BMI_LogCharges <- ggplot(df_nonsmoker, mapping = aes(log_charges, bmi)) + 
+  geom_point(color = "black", alpha = 0.5, fill = "red", shape = 21, size = 2, stroke = 0.5) +
+  geom_smooth(method = "lm", color = "red", linewidth = 1.25) +
+  labs(
+    x = "Log of Claims Costs (in USD)", 
+    y = "BMI", 
+  ) + stat_poly_eq(use_label(c("eq", "R2")), formula = y ~ x, parse = TRUE) + 
+  theme_minimal()
+nonsmoker_BMI_LogCharges <- annotate_figure(nonsmoker_BMI_LogCharges, top = text_grob("BMI Vs. Log of Claims Costs (In non smokers)"))
+nonsmoker_BMI_LogCharges
+```
+In the above figure, @BMI-Log-of-Claims-Non-Smokers, we once again see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the non smokers (those denoted with "no" or 0 in the cleaned data).  This distribution has a very flat non-linear distribution.  The relationship has a $R^2$ value of ~ 0, which gives very little confidence that bmi has any effect on charges of those that are not smokers.  
 
 \[...\]
 
@@ -419,6 +469,10 @@ While the authors used the a logarithmic transformation to address normality con
 For the team working on this report, we recognize that more validation measures and plots should be included in the future to help support the validity of those models. Examples include QQ-plots and residual plots.
 
 # VI. Author Contributions
+Jeremy:
+- Setting up the github repository
+
+Abigail:
 
 Abigail Weinstein: All code. All inductory and explanatory text for Data Cleaning, Modeling, Results, and Final Recommendation. @tbl-data-summary and @fig-data-dispersion.
 
