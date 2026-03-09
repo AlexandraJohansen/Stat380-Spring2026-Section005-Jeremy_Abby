@@ -5,7 +5,9 @@ author:
   - "Jeremy Ijoma"
   - "Max Krier"
 date: 03-08-2026
-format: pdf
+format: 
+    pdf:
+      code-overflow: wrap
 ---
 
 # I. Introduction
@@ -35,10 +37,11 @@ library(glmnet)
 library(ggpubr)
 library(kableExtra)
 library(knitr)
+library(ggpmisc)
 
 #load data
 insurance_data_s26 <- read_csv("insurance_data_S26.csv")
-insurance_valdiation <- read_csv("insurance_data_validation_S26.csv")
+insurance_validation <- read_csv("insurance_data_validation_S26.csv")
 ```
 
 Prior to model building, it is necessary to understand the data we are working with. The activity instructions provided the following list of attribute descriptions. Attribute titles and data types incorporated in the list are our own additions, obtained through the `names` and `str` functions in $R$.
@@ -109,7 +112,9 @@ tbl <- kable(tbl, col.names =
 tbl
 ```
 
-In @tbl-data-summary, we can see the summary statistics for all variables in the data (with the exception of `region`).  Variables such as smoker and male may not necessarily provide useful information in this format, as those are both Boolean variables.  However, the mean output for smoker (0.205) does show that there are more non-smokers than smokers.  Charges, age, bmi, and prior claims are all particularly useful to view in this format. \[...\]
+In @tbl-data-summary, we can see the summary statistics for all variables in the data (with the exception of `region`). In bold is our outcome variable, `charges`. It is immediately clear that this attribute is right skewed, as its mean is greater than its median and the maximum value is significantly greater than both. This merits additional exploration and possible transformation later on. From this point, we take note of `age` and `bmi`. These are our two largest possible predictors, with average values sitting at $39$ and $30$ respectively. This tells the average claimant is about $39$ years of age with a BMI of $30$. Unsurprisingly, the data is split $50/50$ in gender, with a little over half of claimants being male. The mean for our `smoker` attribute indicates to us that about only $20$% of claimants are smokers. Claims, from this description, appear to be evenly dispersed throughout the year. Additional insights from @tbl-data-summary include that $50$% of claimants have only one child or none and another $50$% of claimants have only filed with Nittany Valley Insurance once before. Even so, there are high values in both `children` and `priorclaims`, indicating a right skew in those distributions.
+
+As a whole, this information can help us inform what are considered "normal" behaviors or traits and which stray far enough from the mean to warrant greater cost to the company. An example of this would be that considering only a small portion of people smoke, their may be an increase in costs associated with higher-risk, less common behaviors or attributes. For a similar reason, having more children may increase costs as it is rarer and there is a greater likelihood of an insurance-worthy event occurring with more people under a single plan.
 
 ```{r}
 #| label: "fig-data-dispersion"
@@ -126,7 +131,7 @@ dens
 
 ```
 
-In @fig-data-dispersion, we see the distribution of the outcome variable, `charges`, in the form of a density plot. This density plot indicates to us that our outcome variable is *not* normally distributed, but rather right skewed. This aligns with the information presented in @tbl-data-summary. It is to be expected, of course, as there is a limit to how little something can cost but no cap for how much. This type of distribution is commonly seen in monetary distributions. What does this mean for our models though? It means that it will be difficult to accurately create a linear regression with this data, as the outcome variable itself is not normally distributed or linear in nature. To address this, we will transform the outcome variable by taking the natural log ($ln(x)$). This will allow us to more accurately predict the outcome variable using a linear model, as the outcome itself will now be linear. **From this point forward, the *logged* version of the outcome variable will be used.**
+In @fig-data-dispersion, we see the distribution of the outcome variable, `charges`, in the form of a density plot. This density plot indicates to us that our outcome variable is *not* normally distributed, but rather right skewed. This aligns with the information presented in @tbl-data-summary. It is to be expected, of course, as there is a limit to how little something can cost but no cap for how much. This type of distribution is commonly seen in monetary distributions. What does this mean for our models though? It means that it will be difficult to accurately create a linear regression with this data, as the outcome variable itself is not normally distributed or linear in nature. To address this, we will transform the outcome variable by taking the natural log ($ln(x)$). This will allow us to more accurately predict the outcome variable using a linear model, as the outcome itself will now be linear. **From this point forward, the *logged* version of the outcome variable will be used unless specified otherwise.**
 
 ```{r}
 #| label: "transform-outcome"
@@ -141,17 +146,34 @@ insurance_data_s26_clean <- insurance_data_s26_clean %>% mutate(
 
 ### Exploring Relationships
 
-Below are graphs showing a collection of a few of the relationships looked at in the project.  
+The following section explores relationships of various attributes with our outcome variable, `charges` (not logged).
 
 ```{r}
-#| label: "BMI-Log-of-Claims-Smokers"
+#| label: "fig-box-smoker"
 #| echo: false
+box <- ggplot(insurance_data_s26_clean, aes(x = as.factor(smoker), y = charges, fill = as.factor(smoker))) +
+  geom_boxplot() +
+  scale_x_discrete(labels = c("Non-Smoker", "Smoker")) +
+  scale_y_continuous(labels = comma) + 
+  scale_fill_manual(values = c("lightgrey", "orange"), guide = "none") +
+  labs(x = "Smoker Status", y = "Claims Costs (in USD)") + theme_classic()
+box <- annotate_figure(box, top = text_grob("Claims Cost Difference by Smoking Status"))
+box
+```
+
+@fig-box-smoker displays the relationship between smoking (`smoker`) and `charges`. As speculated earlier, this plot furthers the belief that smoking status of a claimant causes differences in costs for the insurance company. Specifically, it shows that smokers are charged more than non-smokers the majority of the time, with outliers of the non-smoking category aligning with the median of the smoking category.
+
+```{r}
+#| label: "fig-BMI-Log-of-Claims-Smokers"
+#| echo: false
+#| results: "hide"
+#| message: false
 #| fig-cap: "BMI Vs. Log of Claims Costs (In smokers)"
 
 #Splitting the smokers from non-smokers to see if results change significantly
 df <- split(insurance_data_s26_clean, insurance_data_s26_clean$smoker)
-df_smoker <- df$yes
-df_nonsmoker <- df$no
+df_smoker <- df$`1`
+df_nonsmoker <- df$`0`
 
 smoker_BMI_LogCharges <- ggplot(df_smoker, mapping = aes(log_charges, bmi)) + 
   geom_point(color = "black", alpha = 0.5, fill = "red", shape = 21, size = 2, stroke = 0.5) +
@@ -165,17 +187,19 @@ smoker_BMI_LogCharges <- annotate_figure(smoker_BMI_LogCharges, top = text_grob(
 smoker_BMI_LogCharges
 ```
 
-In the above figure, @BMI-Log-of-Claims, we see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the smokers (those denoted with "yes" or 1 in the cleaned data).  The distribution shows a positive linear relationship.  The $R^2$ of the regression line is 0.62.  Thus, bmi explains 62% of the variation in the $log(charges)$ for smokers.  
+In the above figure, @fig-BMI-Log-of-Claims-Smokers, we see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the smokers (those denoted with "yes" or 1 in the cleaned data). The distribution shows a positive linear relationship. The $R^2$ of the regression line is 0.62. Thus, `bmi` explains 62% of the variation in the $\ln(charges)$ for smokers.
 
 ```{r}
-#| label: "BMI-Log-of-Claims-Non-Smokers"
+#| label: "fig-BMI-Log-of-Claims-Non-Smokers"
 #| echo: false
+#| results: "hide"
+#| message: false
 #| fig-cap: "BMI Vs. Log of Claims Costs (In non smokers)"
 
 #Splitting the smokers from non-smokers to see if results change significantly
 df <- split(insurance_data_s26_clean, insurance_data_s26_clean$smoker)
-df_smoker <- df$yes
-df_nonsmoker <- df$no
+df_smoker <- df$`1`
+df_nonsmoker <- df$`0`
 
 nonsmoker_BMI_LogCharges <- ggplot(df_nonsmoker, mapping = aes(log_charges, bmi)) + 
   geom_point(color = "black", alpha = 0.5, fill = "red", shape = 21, size = 2, stroke = 0.5) +
@@ -188,9 +212,8 @@ nonsmoker_BMI_LogCharges <- ggplot(df_nonsmoker, mapping = aes(log_charges, bmi)
 nonsmoker_BMI_LogCharges <- annotate_figure(nonsmoker_BMI_LogCharges, top = text_grob("BMI Vs. Log of Claims Costs (In non smokers)"))
 nonsmoker_BMI_LogCharges
 ```
-In the above figure, @BMI-Log-of-Claims-Non-Smokers, we once again see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the non smokers (those denoted with "no" or 0 in the cleaned data).  This distribution has a very flat non-linear distribution.  The relationship has a $R^2$ value of ~ 0, which gives very little confidence that bmi has any effect on charges of those that are not smokers.  
 
-\[...\]
+In the above figure, @fig-BMI-Log-of-Claims-Non-Smokers, we once again see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the non smokers (those denoted with "no" or 0 in the cleaned data). This distribution has a very flat non-linear distribution. The relationship has a $R^2$ value of \~ 0, which gives very little confidence that `bmi` has any effect on charges of those that are not smokers.
 
 # III. Modeling 
 
@@ -223,13 +246,16 @@ To split the data, we will be using an $80/20$ random split such that $80$% of t
 
 ### Model 1: Step-Wise Selection (AIC)
 
-After using the step-wise selection algorithm on our testing data, we identified the model with the lowest $AIC$ out of all possible models. The resulting model included the following variables: `smoker`, `age`, `children`, `priorclaims`, `region`, `bmi`, and `male` (our modified version of `sex`). Below is the full model:
+After using the step-wise selection algorithm on our testing data, we identified the model with the lowest $AIC$ (Akaike Information Criterion) out of all possible models. The resulting model included the following variables: `smoker`, `age`, `children`, `priorclaims`, `region`, `bmi`, and `male` (our modified version of `sex`). Below is the full model:
 
 $$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children, i} $$
 $$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
 
-\[interpretation\]
-This model from the Step-Wise regression techniques uses age, smoking status, and BMI to show the primary causes of insurance costs. This is shown through Adjusted R-squared. It seems to show smoking status as the largest relative impact.
+The first item that should be noted is that the outcome variable is represented as a natural log here. This influences how all other coefficients are interpreted. Instead of each coefficient-attribute pair contributing $x$ dollars to the total value of claims costs, it represents the contribution to the logged value of those costs. As such, the each coefficient does not represent an increase of $\beta$ per unit (as in summation), but rather the product of $e^{\beta * X}$ **in relation to the outcome as it is in US dollars**. For instance, for every unit increase in `age`, for example, the natural log of `charges` will increase by $0.034$, which translates to it being multiplied by a factor of $e^{.034X}$. For most of the attributes in this model, it is simply a matter of whether or not it occurs, as they are dichotomous categorical variables. If an insurance claim is made by a man, for example, the cost to the insurance company decreases by $.07$ logged USD *or* by a factor of $1.07$ when extrapolating the formula to the un-transformed dollar. While it does become more complicated, this transformation allows us to have what really should be a logarithmic regression in the form of a linear one.
+
+Beyond this aspect of the model, we should also note that the *northeastern* class of `region` is being used as the baseline region in this model. For every other region, claims cost decrease from this baseline. Other factors that contribute to *lower* claims costs for the insurance company, according to this model, include number of prior claims and individual has made and if the individual filing that claim is a man. Factors that increase claims costs are claimant BMI, age, and smoking. The baseline (intercept) of this model translates to approximately $1,354$ USD. It should be noted that this value is the cost to the company assuming that claimant is a female infant, which is unrealistic both in reality and in this data, as it only includes adults.
+
+Finally, it should be noted that all of these attributes have a relatively small effect on claim costs compared to that of our `smoking` attribute. This is to be expected, considering the massive differences highlighted in @fig-box-smoker earlier. Of course, `age` and `bmi` are continuous and begin at greater values (see @tbl-data-summary), so they become scaled to a greater effect within the model. As such, we could argue that the most influential attributes, according to this model are `age`, `bmi`, and `smoker`.
 
 ```{r}
 #| label: "model-sws-aic"
@@ -265,8 +291,10 @@ $$
 \ln(charges) = 7.581 + 0.031X_{age, i} + 0.053X_{children, i} + 1.341X_{smoker, i} - 0.014X_{priorclaims, i}
 $$
 
-\[interpretation\]
-Through LASSO Regression, the model shows singular influence of insurance risk. One Standard Error selects the one model that is simplified and minimized but can still perform within a good margin of the result.
+Like Model 1, this model is also in terms of the natural log of `charges`. This means that, when computing the costs in raw USD, it is not adding $\beta X$ to the intercept, but multiplying that intercept by $e^{\beta X}$. This model, as is common in uses of LASSO regression, contains very few attributes. Of these attributes, all were included in our previous model. Relationships between `charges` and the attributes themselves remain the same; a claimant's age, smoking status, and number of children all increase costs to the insurance company. Prior claims made by that claimant decrease costs. What is different, though, is the scale of impact. Rather than coefficients increasing, as one would presume when parameters a decreased but the same outcomes are desired, they *decrease*. Smoking now only increase logged costs by $1.341$ USD rather than $1.51$. While this is a small change in logged terms, it becomes more substantial after data is transformed back to its original form.
+
+The transfer of influence on the outcome is then transferred from these attributes to the intercept itself, which is valued at a scaled $1,960$ USD. Again, it should be noted this is assuming infancy. Were we to set the baseline of age in this regression at the point it is in the raw data ($18$ years of age), this value would be closer to $3,424$ USD. It is extremely interesting that this shift occurred within the model while excluding one of the other heavy-hitting attributes from the previous model (`bmi`).
+
 ```{r}
 #| label: "model-lasso"
 #| results: "hide"
@@ -287,15 +315,27 @@ model2 <- cv.glmnet(
   nfolds = 10
 )
 
-model2 <- predict(model2, s = model2$lambda.1se, type = "coefficients")
-model2 <- data.frame(name = model2@Dimnames[[1]][model2@i + 1], coefficient = model2@x)
-model2
+model_2 <- predict(model2, s = model2$lambda.1se, type = "coefficients")
+model_2 <- data.frame(name = model_2@Dimnames[[1]][model_2@i + 1], coefficient = model_2@x)
+model_2
 
 ```
 
 # V. Results
 
-Now that we have our models and an understanding of what they mean, it is important that we validate each of them. As mentioned earlier, we are to be utilizing the $RMSE$ and $R^2$ to evaluate each of these models. In addition, we have been provided with another unique data set for the models to be assessed on. Each model will then have interpretations provided for results of both cross-validation assessments and the unseen data assessments. This, of course, is in addition to the contextual interpretations of the models. After this, we will select the model we believe to be the best.
+Now that we have our models and an understanding of what they mean, it is important that we validate each of them. Validation will first be conducted with respect to the *testing* sets constructed earlier in this report. As mentioned earlier, we are to be utilizing the $RMSE$ and $R^2$ to evaluate each of these models. In addition, we have been provided with another unique data set for the models to be assessed on. Each model will then have interpretations provided for results of both cross-validation assessments and the unseen data assessments. This, of course, is in addition to the contextual interpretations of the models provided earlier. After this, we will select the model we believe to be the best.
+
+As a refresher, these are the formulas for both $RMSE$ and $R^2$:
+
+$$
+RMSE = 1 - ( \sum(\hat{y_i} - y_i)^2 / \sum(y_i- \bar{y})^2)
+$$
+
+$$
+R^2 = \sqrt{1/n * (y_i - \hat{y_i})^2}
+$$
+
+$RMSE$ evaluates the average error (in units of the outcome) from the true value of the observation and is used as a measure of accuracy. $R^2$ evaluates the proprotion of total variance accounted for within the model and is often used as a measure of fit.
 
 ### Model 1 Cross Validation
 
@@ -305,52 +345,140 @@ Now that we have our models and an understanding of what they mean, it is import
 #| echo: false
 
 #predict values
-model1_predicted <- predict(model1, newx = insurance_test)
+model1_predicted <- predict(model1, newdata = insurance_test)
 
 #calculate R^2
-r_squared_value <- summary(model1)$r.squared
-
-print(r_squared_value)
-
+rss <- sum((model1_predicted - insurance_test_output)^2)  
+tss <- sum((insurance_test_output - mean(insurance_test_output))^2)
+r2 <- 1- (rss/tss)
+r2
 #calculate RMSE
+mse <- modelr::mse(model = model1, data = insurance_test)
+rmse <- sqrt(mse)
+rmse
 
-mse_value <- mean(residuals(model1))
-rmse_value <- mse_value^2
-
-print(mse_value)
-print(rmse_value)
+rmse_factor <- exp(rmse)
+rmse_factor
 ```
+
+The reported statistics for Model 1, the step-wise selection model determined using AIC, are as follows:
+
+$$
+R^2: .7694
+$$
+
+$$
+RMSE: .4781
+$$
+
+The $R^2$ indicates to us that approximately $77$% of variation in the data evaluated is accounted for by the model. The closer to $100$% this value is, the better fit your model for that particular set of data. We evaluate the $R^2$ on the testing set so that we can determine whether or not our data has been overfit to the training set. In this instance, this model actually performed better on the testing data than on the training data ($R^2 = .75$).
+
+The $RMSE$ of this model is misleading. $RMSE$ is in the unit of measure that the outcome variable is in. In this instance, it is logged USD. Because we are working with logged data, this seemingly small value of $.4781$ carries a bit more weight. In the raw version of our `charges` variable, this $RMSE$ translates to an error factor of $1.61$, meaning that the true value of our observations is on average within \[$\hat{y_i}/1.61, \hat{y_i} *1.61$\] of our predicted value.
 
 ### Model 2 Cross Validation
 
+```{r}
+#| label: "model-2-validation"
+#| results: "hide"
+#| echo: false
+
+#predict values
+model2_predicted <- predict(model2, s = model2$lambda.1se, newx = insurance_test_input)
+
+#calculate R^2
+rss <- sum((model2_predicted - insurance_test_output)^2)  
+tss <- sum((insurance_test_output - mean(insurance_test_output))^2)
+r2 <- 1- (rss/tss)
+r2
+#calculate RMSE
+rmse <- sqrt(mean((insurance_test_output - model2_predicted)^2))
+rmse
+
+rmse_factor <- exp(rmse)
+rmse_factor
+```
+
+The reported statistics for Model 1, the step-wise selection model determined using AIC, are as follows:
+
+$$ R^2: .7328 $$
+
+$$ RMSE: .5146 $$
+
+The $R^2$ for Model 2 is $.7328$, indicating that approximately $73$% of the variation within the data is accounted for by the model. This is slightly lower than our previous models fit, but not by much. The $RMSE$, sitting at $.5146$. This translates to an error factor of $1.67$. This value tells us that the true logged cost to the insurance company is on average $.5146$ units away from the predicted logged cost. This translates to an an error rate of \~ $67$% in either direction when taken at the raw dollar value.
+
 ### Final Test Validation
 
-Before we can use the validation data provided to us, we need to transform the `sex`, `smoker`, and `charges` elements. This is because these attributes were manipulated during model creation. For validation to be effective, the data must align with the model structure. As such, we transform `sex` and `smoker` attributes into dummy variables and take the natural log of the `charges` outcome attribute.
+Before we can use the validation data provided to us, we need to transform the `sex`, `smoker`, and `charges` elements. This is because these attributes were manipulated during model creation. For validation to be effective, the data must align with the model structure. As such, we transform `sex` and `smoker` attributes into dummy variables and take the natural log of the `charges` outcome attribute. It is also necessary to split into input and output groups for easier calculations later on.
 
 ```{r}
 #| label: "validation-set-clean"
 #| results: "hide"
 #| echo: false
 
-insurance_valdiation <- insurance_valdiation %>% filter(!is.na(charges))
-dim(insurance_valdiation)
+insurance_validation <- insurance_validation %>% filter(!is.na(charges)) %>% select(-c(`...1`))
+dim(insurance_validation)
 
 #transform dummies
-insurance_valdiation <- insurance_valdiation %>% mutate(
+insurance_validation <- insurance_validation %>% mutate(
   male = ifelse(sex == "male", 1, 0), 
   smoker = ifelse(smoker == "no", 0, 1)
 ) %>% select(-c(sex))
 
 
 #transform outcome
-insurance_valdiation <- insurance_valdiation %>% mutate(
+insurance_validation <- insurance_validation %>% mutate(
   log_charges = log(charges + 1)
 )
+
+#split data input/output
+insurance_validation_input <- model.matrix(log_charges ~ . -charges -caseID, data = insurance_validation)
+insurance_validation_output <- insurance_validation$log_charges
 ```
 
-### The Final Model: ...
+```{r}
+#| label: "validation-set-test"
+#| results: "hide"
+#| echo: false
+
+#model 1 test
+model1_predicted <- predict(model1, newdata = insurance_validation)
+rmse1 <- sqrt(mean((insurance_validation_output - model1_predicted)^2))
+rmse1
+rmse1_factor <- exp(rmse1)
+rmse1_factor
+
+#model 2 test
+model2_predicted <- predict(model2, s = model2$lambda.1se, newx = insurance_validation_input)
+rmse2 <- sqrt(mean((insurance_validation_output - model2_predicted)^2))
+rmse2
+rmse2_factor <- exp(rmse2)
+rmse2_factor
+```
+
+The final test for these models are to evaluate them on completely unseen data. Evaluations are being conducted through *only* $RMSE$. The resulting $RMSE$ values are as follows:
+
+$$
+RMSE_{M1} = .4145
+$$
+
+$$
+RMSE_{M2} = .4289
+$$
+
+While they are very close, our first model indicates less deviation from both logged and true values of the outcome variable ($.4145 < .4289$). With this information from unseen, unrelated data and the outcomes from our previous validation measures, we argue that the best model to use out of those presented here is **Model 1**.
+
+### The Final Model: Step-Wise Selection w/ AIC
+
+The final model recommended for Nittany Valley Insurance Company is **Model 1: Step-Wise Selection w/ AIC**. This model incorporates a number of attributes from the data provided (`smoker`, `age`, `children`, `priorclaims`, `region`, `bmi`, and `sex`) to create a model that is fairly well fit and does not deviate too strongly from true values in both the logged data used to create the models and the raw data that the models will be applied to. The model, shown below, addresses the three "big" factors that are commonly agreed upon to have substantial influence on claims costs and provides evidence to support that belief.
+
+$$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children, i} $$
+$$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
 
 # V. Final Recommendations
+
+While the authors used the a logarithmic transformation to address normality concerns such that a linear model would be more accurate, it should be noted that this transformation does not ensure normality. A closer look at the data will reveal an uneven, albeit more normal distribution of the outcome variable. It may be for this reason we saw larger $RMSE$s. We recommend that, in the future, a strictly non-linear approach is taken to predict costs to the company. These will likely be more accurate all around. It would still be recommended that factors such as age, BMI, smoking habits, and more are taken into consideration when creating those models.
+
+For the team working on this report, we recognize that more validation measures and plots should be included in the future to help support the validity of those models. Examples include QQ-plots and residual plots.
 
 # VI. Author Contributions
 Jeremy:
@@ -358,7 +486,12 @@ Jeremy:
 
 Abigail:
 
-Max:
+Abigail Weinstein: All code. Introductory and explanatory text for Data Cleaning, Modeling, Results, and Final Recommendation. @tbl-data-summary and @fig-data-dispersion.
+
+Jeremy Ijoma: Data summary interpretation. @fig-box-smoker . Created GitHub repository.
+
+Max Krier: Exploring relationships visuals and explanations. @fig-BMI-Log-of-Claims-Smokers and @fig-BMI-Log-of-Claims-Non-Smokers.
+
 # VII. Code Appendix
 
 ```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
