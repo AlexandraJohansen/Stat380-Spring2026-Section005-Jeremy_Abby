@@ -109,7 +109,7 @@ tbl <- kable(tbl, col.names =
 tbl
 ```
 
-In @tbl-data-summary, we can see the summary statistics for all variables in the data (with the exception of `region`). \[...\]
+In @tbl-data-summary, we can see the summary statistics for all variables in the data (with the exception of `region`).  Variables such as smoker and male may not necessarily provide useful information in this format, as those are both Boolean variables.  However, the mean output for smoker (0.205) does show that there are more non-smokers than smokers.  Charges, age, bmi, and prior claims are all particularly useful to view in this format. \[...\]
 
 ```{r}
 #| label: "fig-data-dispersion"
