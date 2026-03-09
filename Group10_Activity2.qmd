@@ -172,12 +172,16 @@ To split the data, we will be using an $80/20$ random split such that $80$% of t
 
 ### Model 1: Step-Wise Selection (AIC)
 
-After using the step-wise selection algorithm on our testing data, we identified the model with the lowest $AIC$ out of all possible models. The resulting model included the following variables: `smoker`, `age`, `children`, `priorclaims`, `region`, `bmi`, and `male` (our modified version of `sex`). Below is the full model:
+After using the step-wise selection algorithm on our testing data, we identified the model with the lowest $AIC$ (Akaike Information Criterion) out of all possible models. The resulting model included the following variables: `smoker`, `age`, `children`, `priorclaims`, `region`, `bmi`, and `male` (our modified version of `sex`). Below is the full model:
 
 $$ \ln(charges) = 7.211 + 1.510X_{smoker,i} + 0.034X_{age, i} + 0.091X_{children, i} $$
 $$ -0.058X_{priorclaims, i} - 0.108X_{regionNW, i} - 0.228X_{regionSE, i} - 0.206X_{regionSW, i} + 0.014X_{bmi, i} - 0.071X_{male, i} $$
 
-\[interpretation\]
+The first item that should be noted is that the outcome variable is represented as a natural log here. This influences how all other coefficients are interpreted. Instead of each coefficient-attribute pair contributing $x$ dollars to the total value of claims costs, it represents the contribution to the logged value of those costs. As such, the each coefficient does not represent an increase of $\beta$ per unit (as in summation), but rather the product of $e^{\beta * X}$ **in relation to the outcome as it is in US dollars**. For instance, for every unit increase in `age`, for example, the natural log of `charges` will increase by $0.034$, which translates to it being multiplied by a factor of $e^{.034X}$. For most of the attributes in this model, it is simply a matter of whether or not it occurs, as they are dichotomous categorical variables. If an insurance claim is made by a man, for example, the cost to the insurance company decreases by $.07$ logged USD *or* by a factor of $1.07$ when extrapolating the formula to the un-transformed dollar. While it does become more complicated, this transformation allows us to have what really should be a logarithmic regression in the form of a linear one.
+
+Beyond this aspect of the model, we should also note that the *northeastern* class of `region` is being used as the baseline region in this model. For every other region, claims cost decrease from this baseline. Other factors that contribute to *lower* claims costs for the insurance company, according to this model, include number of prior claims and individual has made and if the individual filing that claim is a man. Factors that increase claims costs are claimant BMI, age, and smoking. The baseline (intercept) of this model translates to approximately $1,354$ USD. It should be noted that this value is the cost to the company assuming that claimant is a female infant, which is unrealistic both in reality and in this data, as it only includes adults.
+
+Finally, it should be noted that all of these attributes have a relatively small effect on claim costs compared to that of our `smoking` attribute. Of course, `age` and `bmi` are continuous and begin at greater values (see @tbl-data-summary), so they become scaled to a greater effect within the model. As such, we could argue that the most influential attributes, according to this model are `age`, `bmi`, and `smoker`.
 
 ```{r}
 #| label: "model-sws-aic"
@@ -213,7 +217,9 @@ $$
 \ln(charges) = 7.581 + 0.031X_{age, i} + 0.053X_{children, i} + 1.341X_{smoker, i} - 0.014X_{priorclaims, i}
 $$
 
-\[interpretation\]
+Like Model 1, this model is also in terms of the natural log of `charges`. This means that, when computing the costs in raw USD, it is not adding $\beta X$ to the intercept, but multiplying that intercept by $e^{\beta X}$. This model, as is common in uses of LASSO regression, contains very few attributes. Of these attributes, all were included in our previous model. Relationships between `charges` and the attributes themselves remain the same; a claimant's age, smoking status, and number of children all increase costs to the insurance company. Prior claims made by that claimant decrease costs. What is different, though, is the scale of impact. Rather than coefficients increasing, as one would presume when parameters a decreased but the same outcomes are desired, they *decrease*. Smoking now only increase logged costs by $1.341$ USD rather than $1.51$. While this is a small change in logged terms, it becomes more substantial after data is transformed back to its original form.
+
+The transfer of influence on the outcome is then transferred from these attributes to the intercept itself, which is valued at a scaled $1,960$ USD. Again, it should be noted this is assuming infancy. Were we to set the baseline of age in this regression at the point it is in the raw data ($18$ years of age), this value would be closer to $3,424$ USD. It is extremely interesting that this shift occurred within the model while excluding one of the other heavy-hitting attributes from the previous model (`bmi`).
 
 ```{r}
 #| label: "model-lasso"
@@ -243,7 +249,17 @@ model_2
 
 # V. Results
 
-Now that we have our models and an understanding of what they mean, it is important that we validate each of them. As mentioned earlier, we are to be utilizing the $RMSE$ and $R^2$ to evaluate each of these models. In addition, we have been provided with another unique data set for the models to be assessed on. Each model will then have interpretations provided for results of both cross-validation assessments and the unseen data assessments. This, of course, is in addition to the contextual interpretations of the models. After this, we will select the model we believe to be the best.
+Now that we have our models and an understanding of what they mean, it is important that we validate each of them. Validation will first be conducted with respect to the *testing* sets constructed earlier in this report. As mentioned earlier, we are to be utilizing the $RMSE$ and $R^2$ to evaluate each of these models. In addition, we have been provided with another unique data set for the models to be assessed on. Each model will then have interpretations provided for results of both cross-validation assessments and the unseen data assessments. This, of course, is in addition to the contextual interpretations of the models. After this, we will select the model we believe to be the best.
+
+As a refresher, these are the formulas for both $RMSE$ and $R^2$:
+
+$$
+RMSE = 1 - ( \sum(\hat{y_i} - y_i)^2 / \sum(y_i- \bar{y})^2)
+$$
+
+$$
+R^2 = \sqrt{1/n * (y_i - \hat{y_i})^2}
+$$
 
 ### Model 1 Cross Validation
 
@@ -269,7 +285,19 @@ rmse_factor <- exp(rmse)
 rmse_factor
 ```
 
-\[interpret results\]
+The reported statistics for Model 1, the step-wise selection model determined using AIC, are as follows:
+
+$$
+R^2: .7694
+$$
+
+$$
+RMSE: .4781
+$$
+
+The $R^2$ indicates to us that approximately $77$% of variation in the data evaluated is accounted for by the model. The closer to $100$% this value is, the better fit your model for that particular set of data. We evaluate the $R^2$ on the testing set so that we can determine whether or not our data has been overfit to the training set. In this instance, this model actually performed better on the testing data than on the training data ($R^2 = .75$).
+
+The $RMSE$ of this model is misleading. $RMSE$ is in the unit of measure that the outcome variable is in. In this instance, it is logged USD. Because we are working with logged data, this seemingly small value of $.4781$ carries a bit more weight. In the raw version of our `charges` variable, this $RMSE$ translates to an error factor of $1.61$, meaning that the true value of our observations is on average within \[$\hat{y_i}/1.61, \hat{y_i} *1.61$\] of our predicted value.
 
 ### Model 2 Cross Validation
 
@@ -287,14 +315,20 @@ tss <- sum((insurance_test_output - mean(insurance_test_output))^2)
 r2 <- 1- (rss/tss)
 r2
 #calculate RMSE
-rmse <- sqrt(mean(insurance_test_output - model2_predicted)^2)
+rmse <- sqrt(mean((insurance_test_output - model2_predicted)^2))
 rmse
 
 rmse_factor <- exp(rmse)
 rmse_factor
 ```
 
-\[interpret results\]
+The reported statistics for Model 1, the step-wise selection model determined using AIC, are as follows:
+
+$$ R^2: .7328 $$
+
+$$ RMSE: .5146 $$
+
+The $R^2$ for Model 2 is $.7328$, indicating that approximately $73$% of the variation within the data is accounted for by the model. This is slightly lower than our previous models fit, but not by much. The $RMSE$, sitting at $.5146$. This translates to an error factor of $1.67$. This value tells us that the true logged cost to the insurance company is on average $.5146$ units away from the predicted logged cost. This translates to an an error rate of \~ $67$% in either direction when taken at the raw dollar value.
 
 ### Final Test Validation
 
@@ -332,20 +366,20 @@ insurance_validation_output <- insurance_validation$log_charges
 
 #model 1 test
 model1_predicted <- predict(model1, newdata = insurance_validation)
-rmse1 <- sqrt(mean(insurance_validation_output - model1_predicted)^2)
+rmse1 <- sqrt(mean((insurance_validation_output - model1_predicted)^2))
 rmse1
 rmse1_factor <- exp(rmse1)
 rmse1_factor
 
 #model 2 test
 model2_predicted <- predict(model2, s = model2$lambda.1se, newx = insurance_validation_input)
-rmse2 <- sqrt(mean(insurance_validation_output - model2_predicted)^2)
+rmse2 <- sqrt(mean((insurance_validation_output - model2_predicted)^2))
 rmse2
 rmse2_factor <- exp(rmse2)
 rmse2_factor
 ```
 
-\[interpret results\]
+...
 
 ### The Final Model: ...
 
