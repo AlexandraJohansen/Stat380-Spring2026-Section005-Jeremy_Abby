@@ -54,7 +54,9 @@ insurance_data_s26 <- insurance_data_s26 %>% select(-c(`...1`))
 
 names(insurance_data_s26)
 str(insurance_data_s26)
+summary(insurance_data_s26)
 ```
+The data represents the range of  
 
 > -   `age` : the age of the primary beneficiary (in years); numeric
 > -   `sex` : the sex of the primary beneficiary; character
@@ -479,6 +481,10 @@ While the authors used the a logarithmic transformation to address normality con
 For the team working on this report, we recognize that more validation measures and plots should be included in the future to help support the validity of those models. Examples include QQ-plots and residual plots.
 
 # VI. Author Contributions
+Jeremy:
+- Setting up the github repository
+
+Abigail:
 
 Abigail Weinstein: All code. Introductory and explanatory text for Data Cleaning, Modeling, Results, and Final Recommendation. @tbl-data-summary and @fig-data-dispersion.
 
