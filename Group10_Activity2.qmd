@@ -51,6 +51,7 @@ insurance_data_s26 <- insurance_data_s26 %>% select(-c(`...1`))
 
 names(insurance_data_s26)
 str(insurance_data_s26)
+summary(insurance_data_s26)
 ```
 
 > -   `age` : the age of the primary beneficiary (in years); numeric
@@ -105,9 +106,14 @@ tbl <- kable(tbl, col.names =
   kable_classic() %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed")) 
 tbl
+
+
 ```
 
+
 In @tbl-data-summary, we can see the summary statistics for all variables in the data (with the exception of `region`). \[...\]
+
+the summary statistics in the beneficiary population, the table show the average age (mean/median) of 39 ranging from 18 to 64 and number of children in beneficiary ranges from 0 to 5. BMI's mean/median is at 30.6. Though the mean and median are close in these variables, they seem to differ in insurance charges from 9,447 as the median and 13196 as the mean proving a right skewed scatterplot. This shows that a small statistical imbalance of the costs seem to impact the average greater.
 
 ```{r}
 #| label: "fig-data-dispersion"
