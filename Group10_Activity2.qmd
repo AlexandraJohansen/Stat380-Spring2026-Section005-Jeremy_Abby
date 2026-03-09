@@ -37,6 +37,7 @@ library(glmnet)
 library(ggpubr)
 library(kableExtra)
 library(knitr)
+library(ggpmisc)
 
 #load data
 insurance_data_s26 <- read_csv("insurance_data_S26.csv")
@@ -160,6 +161,58 @@ box
 
 @fig-box-smoker displays the relationship between smoking (`smoker`) and `charges`. As speculated earlier, this plot furthers the belief that smoking status of a claimant causes differences in costs for the insurance company. Specifically, it shows that smokers are charged more than non-smokers the majority of the time, with outliers of the non-smoking category aligning with the median of the smoking category.
 
+```{r}
+#| label: "fig-BMI-Log-of-Claims-Smokers"
+#| echo: false
+#| results: "hide"
+#| message: false
+#| fig-cap: "BMI Vs. Log of Claims Costs (In smokers)"
+
+#Splitting the smokers from non-smokers to see if results change significantly
+df <- split(insurance_data_s26_clean, insurance_data_s26_clean$smoker)
+df_smoker <- df$`1`
+df_nonsmoker <- df$`0`
+
+smoker_BMI_LogCharges <- ggplot(df_smoker, mapping = aes(log_charges, bmi)) + 
+  geom_point(color = "black", alpha = 0.5, fill = "red", shape = 21, size = 2, stroke = 0.5) +
+  geom_smooth(method = "lm", color = "red", linewidth = 1.25, alpha = 0.25) +
+  labs(
+    x = "Log of Claims Costs (in USD)", 
+    y = "BMI", 
+  ) + stat_poly_eq(use_label(c("eq", "R2")), formula = y ~ x, parse = TRUE) + 
+  theme_minimal()
+smoker_BMI_LogCharges <- annotate_figure(smoker_BMI_LogCharges, top = text_grob("BMI Vs. Log of Claims Costs (In smokers)"))
+smoker_BMI_LogCharges
+```
+
+In the above figure, @fig-BMI-Log-of-Claims-Smokers, we see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the smokers (those denoted with "yes" or 1 in the cleaned data). The distribution shows a positive linear relationship. The $R^2$ of the regression line is 0.62. Thus, `bmi` explains 62% of the variation in the $\ln(charges)$ for smokers.
+
+```{r}
+#| label: "fig-BMI-Log-of-Claims-Non-Smokers"
+#| echo: false
+#| results: "hide"
+#| message: false
+#| fig-cap: "BMI Vs. Log of Claims Costs (In non smokers)"
+
+#Splitting the smokers from non-smokers to see if results change significantly
+df <- split(insurance_data_s26_clean, insurance_data_s26_clean$smoker)
+df_smoker <- df$`1`
+df_nonsmoker <- df$`0`
+
+nonsmoker_BMI_LogCharges <- ggplot(df_nonsmoker, mapping = aes(log_charges, bmi)) + 
+  geom_point(color = "black", alpha = 0.5, fill = "red", shape = 21, size = 2, stroke = 0.5) +
+  geom_smooth(method = "lm", color = "red", linewidth = 1.25) +
+  labs(
+    x = "Log of Claims Costs (in USD)", 
+    y = "BMI", 
+  ) + stat_poly_eq(use_label(c("eq", "R2")), formula = y ~ x, parse = TRUE) + 
+  theme_minimal()
+nonsmoker_BMI_LogCharges <- annotate_figure(nonsmoker_BMI_LogCharges, top = text_grob("BMI Vs. Log of Claims Costs (In non smokers)"))
+nonsmoker_BMI_LogCharges
+```
+
+In the above figure, @fig-BMI-Log-of-Claims-Non-Smokers, we once again see the relationship between the explanatory variable, `bmi`, and the response variable, `log_charges`, for only the non smokers (those denoted with "no" or 0 in the cleaned data). This distribution has a very flat non-linear distribution. The relationship has a $R^2$ value of \~ 0, which gives very little confidence that `bmi` has any effect on charges of those that are not smokers.
+
 # III. Modeling 
 
 Now we are ready to start building our models. As a team, we have decided to use the following model selection strategies to create our two primary models of interest: Step-wise Selection and LASSO Regression. Within these selection algorithms, we will be using the $AIC$ and 1-SE $MSE$ strategies respectively. As always, it is important to remember to split data as to not over fit the models. To evaluate our models, we will be using $RMSE$ and $R^2$.
@@ -200,7 +253,7 @@ The first item that should be noted is that the outcome variable is represented 
 
 Beyond this aspect of the model, we should also note that the *northeastern* class of `region` is being used as the baseline region in this model. For every other region, claims cost decrease from this baseline. Other factors that contribute to *lower* claims costs for the insurance company, according to this model, include number of prior claims and individual has made and if the individual filing that claim is a man. Factors that increase claims costs are claimant BMI, age, and smoking. The baseline (intercept) of this model translates to approximately $1,354$ USD. It should be noted that this value is the cost to the company assuming that claimant is a female infant, which is unrealistic both in reality and in this data, as it only includes adults.
 
-Finally, it should be noted that all of these attributes have a relatively small effect on claim costs compared to that of our `smoking` attribute. This is to be expected, considering the massive differences highlighted in @tbl-box-smoker earlier. Of course, `age` and `bmi` are continuous and begin at greater values (see @tbl-data-summary), so they become scaled to a greater effect within the model. As such, we could argue that the most influential attributes, according to this model are `age`, `bmi`, and `smoker`.
+Finally, it should be noted that all of these attributes have a relatively small effect on claim costs compared to that of our `smoking` attribute. This is to be expected, considering the massive differences highlighted in @fig-box-smoker earlier. Of course, `age` and `bmi` are continuous and begin at greater values (see @tbl-data-summary), so they become scaled to a greater effect within the model. As such, we could argue that the most influential attributes, according to this model are `age`, `bmi`, and `smoker`.
 
 ```{r}
 #| label: "model-sws-aic"
@@ -427,11 +480,11 @@ For the team working on this report, we recognize that more validation measures 
 
 # VI. Author Contributions
 
-Abigail Weinstein: All code. All inductory and explanatory text for Data Cleaning, Modeling, Results, and Final Recommendation. @tbl-data-summary and @fig-data-dispersion.
+Abigail Weinstein: All code. Introductory and explanatory text for Data Cleaning, Modeling, Results, and Final Recommendation. @tbl-data-summary and @fig-data-dispersion.
 
-Jeremy Ijoma: Data summary interpretation, created GitHub repository, brainstorming.
+Jeremy Ijoma: Data summary interpretation. @fig-box-smoker . Created GitHub repository.
 
-Max Krier: Exploring relationships visuals and explanations, brainstorming
+Max Krier: Exploring relationships visuals and explanations. @fig-BMI-Log-of-Claims-Smokers and @fig-BMI-Log-of-Claims-Non-Smokers.
 
 # VII. Code Appendix
 
