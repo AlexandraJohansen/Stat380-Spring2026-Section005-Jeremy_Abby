@@ -107,6 +107,14 @@ tbl <- kable(tbl, col.names =
   kable_classic() %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed")) 
 tbl
+##BoxPlot display the statistics
+ggplot(insurance_data_s26_clean, aes(x = as.factor(smoker), y = charges, fill = as.factor(smoker))) +
+  geom_boxplot() +
+  scale_x_discrete(labels = c("Non-Smoker", "Smoker")) +
+  scale_fill_manual(values = c("lightgrey", "orange"), guide = "none") +
+  labs(title = "Cost Difference by Smoking Status", x = "Smoker Status", y = "Charges ($)") +
+  theme_classic()
+
 ```
 
 In @tbl-data-summary, we can see the summary statistics for all variables in the data (with the exception of `region`). \[...\]
